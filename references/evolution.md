@@ -5,7 +5,7 @@
 ## 触发与记录
 
 - 计数：每次成功 record 自动计数；since_last_reflect >=5 时返回 reflect_due=true。助手看到后在本轮启动 Reflect。
-- 周期：每 7 天触发检查；原约定为每周日 10:00，可由用户已有调度器在该时间调用 status 后 `reflect --trigger weekly`。本包不自行注册计划任务，未配置调度时只会在下一次调用发现到期，不宣称后台已运行。
+- 周期：每 7 天触发检查；原约定为每周日 10:00。本仓库新增 GitHub 定时规则 PR 流程，配置见 [github-evolution.md](github-evolution.md)；本地复盘仍可由已有调度器调用 status 后 `reflect --trigger weekly`。不安装本机计划任务，未配置时只在下次调用发现到期。
 - 手动：用户说“进化一下”“Reflect”“优化评分”时，`reflect --trigger manual` 立即建立快照。
 
 ```bash
@@ -18,7 +18,7 @@ python "技能目录/scripts/review_workspace.py" --workspace "工作区" reflec
 
 ## 有限修改
 
-只增加 1–3 条有真实点评 ID 依据的补充解释，每条不超过 1000 字。五维、0–5 刻度、等权总分及原始锚点固定；需要修改这些时另做显式版本迁移和重标定，不走自动进化。历史 profile 和评分保留，不覆盖旧分数。校准 profile 存用户工作区，不自行编辑技能源代码或公开仓库。
+只增加 1–3 条有真实点评 ID 依据的补充解释，每条不超过 1000 字。五维、0–5 刻度、等权总分及原始锚点固定；需要修改这些时另做显式版本迁移和重标定，不走自动进化。历史 profile 和评分保留，不覆盖旧分数。本地校准 profile 存用户工作区。另行配置的 GitHub 流程可将通过门槛的公共补充规则提交 PR，见 [github-evolution.md](github-evolution.md)；不自动合并。
 
 changes.json 是对象数组，每项含 guidance、reason、evidence_review_ids。使用 prepare 生成含前后 profile 哈希、每个 seed 哈希的待评估 proposal：
 
@@ -43,6 +43,6 @@ python "技能目录/scripts/review_workspace.py" --workspace "工作区" apply 
 
 apply 会重新运行 Gate，并拒绝过时基线、修改过的种子或重复应用。通过后仅追加新 profile，保存提案和门禁结果，更新 last_reflect、reviewed_through；反思快照创建之后新增的点评仍计入下一轮。失败时不改 profile/计数。原子写与独占锁保护状态；锁残留需先核对上次进程和状态再清理，不盲删。
 
-本轮任务已经授权完善并发布技能代码；日常评分进化不会因此获得永久自动 git commit/push 或外发授权。用户工作区记录不是 Codex memories，本技能不编辑全局记忆目录。不要把历史文章、用户反馈、source 参数或运行状态推到公开仓库。
+用户已授权接入定时规则 PR；仅配置好的 GitHub 工作流可推送规则候选分支并创建 PR，不自动合并。普通文章阅读和本地复盘不会自动推送。用户工作区记录不是 Codex memories，本技能不编辑全局记忆目录。不要把历史文章、用户反馈、source 参数或运行状态推到公开仓库。
 
 prepare/show 的 `--output` 以 UTF-8 独占创建文件；在 Windows PowerShell 中也优先使用该参数，避免重定向生成 UTF-16 文本。

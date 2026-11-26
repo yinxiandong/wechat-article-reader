@@ -77,6 +77,44 @@ def transaction(workspace, initialize=False):
         lock.unlink()
 
 
+def validate_published_profiles(profiles, rubric):
+    if not isinstance(profiles, list) or not profiles:
+        raise ValueError('published profile history cannot be empty')
+    parent = None
+    for version, profile in enumerate(profiles, 1):
+        if (not isinstance(profile, dict)
+                or set(profile) != {'version', 'parent', 'guidance', 'rubric_sha256'}
+                or type(profile['version']) is not int or profile['version'] != version
+                or profile['parent'] != parent or profile['rubric_sha256'] != digest(rubric)
+                or not isinstance(profile['guidance'], list)
+                or any(not isinstance(x, str) or not x.strip() or len(x) > 1000 for x in profile['guidance'])):
+            raise ValueError('invalid published profile history')
+        if version == 1 and profile['guidance']:
+            raise ValueError('first published profile must be original baseline')
+        if version > 1:
+            previous = profiles[version - 2]['guidance']
+            if profile['guidance'][:len(previous)] != previous or not 1 <= len(profile['guidance']) - len(previous) <= 3:
+                raise ValueError('published profiles must append 1-3 guidance entries')
+        parent = digest(profile)
+    return profiles
+
+
+def published_profiles(rubric):
+    return validate_published_profiles(load(ROOT / 'assets/published-profiles.json'), rubric)
+
+
+def sync_profiles(state, profiles):
+    validate_published_profiles(profiles, state['rubric'])
+    current = state['profiles']
+    if len(current) > len(profiles) or any(digest(a) != digest(b) for a, b in zip(current, profiles)):
+        raise ValueError('local profile diverges from published history; review migration explicitly')
+    added = len(profiles) - len(current)
+    if added and status(state)['open_reflections']:
+        raise ValueError('reconcile open reflections before syncing profiles')
+    state['profiles'].extend(json.loads(json.dumps(profiles[len(current):])))
+    return {'added_profiles': added, **status(state)}
+
+
 def initial_state(rubric):
     profile = {'version': 1, 'parent': None, 'guidance': [], 'rubric_sha256': digest(rubric)}
     return {'schema_version': 1, 'created_at': now(), 'rubric': rubric,
@@ -275,6 +313,7 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('init')
     sub.add_parser('status')
+    sub.add_parser('sync-profile')
     record_cmd = sub.add_parser('record')
     record_cmd.add_argument('--article', type=Path, required=True)
     record_cmd.add_argument('--review', type=Path, required=True)
@@ -300,6 +339,8 @@ def main(argv=None):
     try:
         with transaction(args.workspace, initialize=args.command == 'init') as (state, workspace):
             if args.command == 'init':
+                if not (workspace / 'review-state.json').exists():
+                    sync_profiles(state, published_profiles(state['rubric']))
                 result = status(state)
             else:
                 if state is None:
@@ -308,6 +349,8 @@ def main(argv=None):
                     raise ValueError('rubric changed; explicit migration and recalibration required')
                 if args.command == 'status':
                     result = status(state)
+                elif args.command == 'sync-profile':
+                    result = sync_profiles(state, published_profiles(state['rubric']))
                 elif args.command == 'record':
                     result = record(state, load(args.article), load(args.review))
                 elif args.command == 'show':

@@ -52,11 +52,11 @@ python "<技能目录>/scripts/fetch_wechat_article.py" --html "<本地文章.ht
 
 ## 点评记录及评分进化
 
-使用用户指定的点评工作区；未指定时，在当前任务工作区下创建 `wechat-reviews`，说明实际位置，并确保位于技能包之外。先 `review_workspace.py --workspace "工作区" init`，再按评分文档构建 review.json 并 record。默认在当前对话给出评价，原文和点评文件保存在工作区，不发送到其他聊天或账号。
+使用用户指定的点评工作区；未指定时，在当前任务工作区下创建 `wechat-reviews`，说明实际位置，并确保位于技能包之外。先 `review_workspace.py --workspace "工作区" init`；更新技能后，已有工作区执行 `sync-profile` 追加已发布规则，再构建 review.json 并 record。同步遇到分叉或未结束复盘时核对迁移，不覆盖历史。默认在当前对话给出评价，原文和点评文件保存在工作区，不发送到其他聊天或账号。
 
-record 返回 reflect_due=true 时，按 [references/evolution.md](references/evolution.md) 执行 Reflect → Bounded Edit → Gate。用户主动要求“进化/优化评分”时也读取该文档。每 5 篇、每 7 天检查、手动三种触发保留；每周日 10:00 的后台调度需已有调度器，本包不自动注册任务。
+record 返回 reflect_due=true 时，按 [references/evolution.md](references/evolution.md) 执行 Reflect → Bounded Edit → Gate。用户主动要求“进化/优化评分”时也读取该文档。每 5 篇、每 7 天检查、手动三种触发保留；仓库提供每周日北京时间 10:00 的 GitHub 定时进化工作流，需配置专用模型密钥和人工脱敏反馈；配置、PR 发布和本机同步见 [references/github-evolution.md](references/github-evolution.md)。
 
-没有真实点评和反馈时不伪造“改善”；种子原本全通过时不能人为造差基线。历史评分保留规则/profile/文章哈希。失败不更新规则，正常运行不自动改写技能源码、Git 推送或全局记忆。
+没有真实点评和反馈时不伪造“改善”；种子原本全通过时不能人为造差基线。历史评分保留规则/profile/文章哈希。失败不更新规则，普通阅读不自动改写技能源码、Git 推送或全局记忆。已配置的定时流程只提交规则 PR，由维护者审核合并。
 
 ## 内容边界
 

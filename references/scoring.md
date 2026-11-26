@@ -39,7 +39,7 @@
 
 ## 保存点评
 
-选择用户工作区（不是技能包目录），先执行 `review_workspace.py --workspace "工作区" init`，结果中读取 active_profile_sha256；再次运行 init 不重置历史。
+选择用户工作区（不是技能包目录），先执行 `review_workspace.py --workspace "工作区" init`，结果中读取 active_profile_sha256；再次运行 init 不重置历史。新工作区采用 assets/published-profiles.json 最新规则；更新技能后已有工作区执行 sync-profile，分叉时核对迁移。评分须实际应用 status 中 active_profile 的 guidance。
 
 由助手生成 review.json，固定字段如下：
 

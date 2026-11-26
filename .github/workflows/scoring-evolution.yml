@@ -1,0 +1,80 @@
+name: Weekly scoring evolution
+on:
+  schedule:
+    - cron: '0 2 * * 0' # Sunday 10:00 Asia/Shanghai
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scoring-evolution
+  cancel-in-progress: false
+jobs:
+  evolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check for an existing evolution PR
+        id: pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          count=$(gh pr list --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/scoring-evolution-"))] | length')
+          if [ "$count" -gt 0 ]; then
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "Skipped: existing rules PR needs review." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Install test dependencies
+        if: steps.pending.outputs.blocked != 'true'
+        run: python -m pip install -r requirements-dev.txt
+      - name: Verify baseline
+        if: steps.pending.outputs.blocked != 'true'
+        run: python -m unittest discover -s tests -v
+      - name: Propose and assess frozen cases
+        if: steps.pending.outputs.blocked != 'true'
+        id: evolution
+        env:
+          OPENAI_API_KEY: ${{ secrets.EVOLUTION_OPENAI_API_KEY }}
+          EVOLUTION_MODEL: ${{ vars.EVOLUTION_MODEL }}
+          EVOLUTION_FEEDBACK_JSON: ${{ secrets.EVOLUTION_FEEDBACK_JSON }}
+        run: python scripts/scheduled_evolution.py run
+      - name: Verify candidate
+        if: steps.evolution.outputs.changed == 'true'
+        run: |
+          python -m unittest discover -s tests -v
+          git diff --check
+      - name: Publish rules PR
+        if: steps.evolution.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          branch="automation/scoring-evolution-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- assets/published-profiles.json assets/evolution-report.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: propose calibrated scoring guidance"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "$branch"
+          cat > "$RUNNER_TEMP/evolution-pr.md" <<'BODY'
+          Append evidence-backed scoring guidance; preserve original dimensions, anchors and weights.
+
+          Validation: more than half of the frozen synthetic cases improved, no regressions, all candidate cases passed, and unit tests passed. See assets/evolution-report.json.
+
+          Review meaning, privacy and fit before merging. Same-model assessments are not independent proof of real-world improvement. Private feedback and provider responses are not published.
+
+          GITHUB_TOKEN PR creation does not trigger ordinary pull_request workflows. Tests ran against the candidate before publication; a maintainer can trigger additional checks before merging.
+          BODY
+          gh pr create --head "$branch" --base "${{ github.event.repository.default_branch }}" --title "Calibrate article scoring guidance" --body-file "$RUNNER_TEMP/evolution-pr.md"

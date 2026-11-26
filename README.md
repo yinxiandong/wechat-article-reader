@@ -59,7 +59,15 @@ python scripts/review_workspace.py --workspace "用户点评工作区" reflect -
 # 按进化指南分析实际点评与反馈，准备、评估、校验和应用候选
 ```
 
-详见 [进化指南](references/evolution.md)。每周日 10:00 的调度需另行配置；未配置时调用 status 检查满 7 天是否到期。程序不会后台调用模型、自动注册任务或把私人记录推送 GitHub。Gate 校验结构和数值，语义评价仍需审阅，不把自评通过当作独立验证。
+详见 [进化指南](references/evolution.md)。未配置云端任务时，调用 status 检查满 7 天是否到期。普通阅读不调用模型 API；定时进化另用专用密钥，不注册本机后台任务、不上传私人记录。Gate 校验结构和数值，语义评价仍需审阅。
+
+## GitHub 每周进化 PR
+
+提供每周日北京时间 10:00 和手动触发工作流。配置 `EVOLUTION_OPENAI_API_KEY`、`EVOLUTION_MODEL` 和人工脱敏的 `EVOLUTION_FEEDBACK_JSON` 后，生成补充规则，分别评测基线与候选，通过 Gate 和测试才创建 PR。仅更新公共校准说明与合成报告，不自动合并、不修改技能代码。
+
+缺配置会报告跳过。原文、点评状态、私有反馈和模型响应不公开；规则合并后，本机通过 `git pull --ff-only` 和 `review_workspace.py ... sync-profile` 同步，保留历史点评。
+
+设置、脱敏导出、费用和同步命令见 [GitHub 定时进化与同步](references/github-evolution.md)。
 
 ## 改进及限制
 
@@ -80,12 +88,17 @@ wechat-article-reader/
 ├── requirements-dev.txt
 ├── assets/scoring-rubric.json
 ├── assets/eval-seed.json
+├── assets/published-profiles.json
+├── .github/workflows/scoring-evolution.yml
 ├── scripts/review_workspace.py
+├── scripts/scheduled_evolution.py
 ├── references/scoring.md
 ├── references/evolution.md
+├── references/github-evolution.md
 ├── references/implementation.md
 ├── tests/test_reader.py
 ├── tests/test_reviews.py
+├── tests/test_cloud.py
 ├── LICENSE
 └── NOTICE
 ```
