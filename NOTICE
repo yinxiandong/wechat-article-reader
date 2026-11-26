@@ -1,0 +1,11 @@
+wechat-article-reader
+
+Inspired by and adapted from yy-wechat-to-markdown in bulls-cows/skills:
+https://github.com/bulls-cows/skills/tree/23aa3a0d86dd369e128c2e10e4e244bf1b393943/skills/yy-wechat-to-markdown
+Upstream license: Apache License, Version 2.0.
+
+Changes dated 2026-11-26: rewritten in Python with DOM-based extraction,
+strict WeChat URLs, bounded HTTP requests, offline HTML input, optional browser
+rendering, separate publication/retrieval dates, safe metadata serialization,
+exclusive output creation and behavioral tests. This is an independent project,
+not an official release of the upstream repository.
