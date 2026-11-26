@@ -146,6 +146,56 @@ class ReaderTests(unittest.TestCase):
             self.assertEqual(reader.main(['--html', str(html), '--output', str(missing)]), 2)
             self.assertFalse(missing.exists())
 
+    def test_status_codes_and_diagnostics(self):
+        for html, code in [('<div class="weui-msg__title">环境异常，请完成验证</div>', 'verification_required'),
+                           ('<div class="weui-msg__title">该内容已被发布者删除</div>', 'article_deleted'),
+                           ('<div class="weui-msg__title">请登录后阅读</div>', 'login_required'),
+                           ('<div id="js_pay_content">付费</div>', 'paid_or_restricted'),
+                           ('<html></html>', 'body_missing')]:
+            with self.subTest(code=code), self.assertRaises(reader.ArticleError) as caught:
+                reader.extract_article(html)
+            self.assertEqual(caught.exception.code, code)
+        article = reader.extract_article(HTML, URL)
+        d = article['diagnostics']
+        self.assertEqual(d['code_block_count'], 1)
+        self.assertEqual(d['table_count'], 1)
+        self.assertEqual(d['unique_image_count'], 1)
+        self.assertIn('最后一段不可截断', d['tail_excerpt'])
+        self.assertEqual(d['text_characters'], len(article['text']))
+        self.assertEqual(len(d['text_sha256']), 64)
+
+    def test_browser_waits_for_body_and_keeps_status_classification(self):
+        import types
+        class BrowserError(Exception):
+            pass
+        playwright = MagicMock()
+        browser = playwright.chromium.launch.return_value
+        context = browser.new_context.return_value
+        page = context.new_page.return_value
+        page.goto.return_value.status = 200
+        page.url = URL
+        page.content.return_value = HTML
+        manager = MagicMock()
+        manager.__enter__.return_value = playwright
+        fake = types.ModuleType('playwright.sync_api')
+        fake.sync_playwright = lambda: manager
+        fake.Error = BrowserError
+        with patch.dict(sys.modules, {'playwright.sync_api': fake}):
+            html, url = reader.fetch_browser(URL, 2)
+            self.assertEqual(html, HTML)
+            self.assertEqual(url, URL)
+            page.wait_for_function.assert_called_once()
+            self.assertEqual(page.wait_for_function.call_args.kwargs['timeout'], 2000)
+            page.wait_for_function.side_effect = BrowserError('timeout')
+            page.content.return_value = '<div class="weui-msg__title">环境异常，请验证</div>'
+            with self.assertRaises(reader.ArticleError) as caught:
+                reader.fetch_browser(URL, 2)
+            self.assertEqual(caught.exception.code, 'verification_required')
+            page.content.return_value = '<html></html>'
+            with self.assertRaises(reader.ArticleError) as caught:
+                reader.fetch_browser(URL, 2)
+            self.assertEqual(caught.exception.code, 'render_timeout')
+
     def test_invalid_cli_timeout(self):
         for value in ['nan', '-1', '181']:
             result = subprocess.run([sys.executable, str(SCRIPT), URL, '--timeout', value], capture_output=True)

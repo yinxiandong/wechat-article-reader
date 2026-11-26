@@ -1,0 +1,81 @@
+{
+  "version": "1.0.0",
+  "legacy_version": "wechat-2.8.0",
+  "scale": {
+    "minimum": 0,
+    "maximum": 5,
+    "total": 25,
+    "weights": "equal"
+  },
+  "dimensions": [
+    {
+      "id": "information_density",
+      "label": "信息密度",
+      "anchors": [
+        "几乎全是废话",
+        "有少量干货但掺水严重",
+        "有干货但掺水不少",
+        "多数段落有实质内容",
+        "几乎每段都有干货",
+        "每段都有实质内容，无废话"
+      ]
+    },
+    {
+      "id": "argument_quality",
+      "label": "论证质量",
+      "anchors": [
+        "观点全靠断言",
+        "有少量论据但很弱",
+        "有部分论据但不完整",
+        "论据基本完整但有漏洞",
+        "论据扎实、逻辑清晰",
+        "论据扎实、逻辑闭环、有反面论证"
+      ]
+    },
+    {
+      "id": "originality",
+      "label": "原创性",
+      "anchors": [
+        "纯搬运/洗稿",
+        "搬运但有少量整理",
+        "有少量个人见解",
+        "有明显个人视角",
+        "独到视角或一手经验",
+        "开创性观点或独家信息"
+      ]
+    },
+    {
+      "id": "credibility",
+      "label": "可信度",
+      "anchors": [
+        "数据/案例不可查",
+        "少量可查但多数存疑",
+        "部分可验证",
+        "多数可验证",
+        "来源清晰可交叉验证",
+        "来源清晰、数据完整、可复现"
+      ]
+    },
+    {
+      "id": "practical_value",
+      "label": "实用价值",
+      "anchors": [
+        "读完啥也干不了",
+        "有启发但无操作路径",
+        "有启发但缺操作路径",
+        "有操作路径但门槛高",
+        "照着做能部分落地",
+        "照着做能完全落地"
+      ]
+    }
+  ],
+  "article_types": [
+    "tutorial",
+    "investment",
+    "product_pr",
+    "trend",
+    "opinion",
+    "news",
+    "tool_repost"
+  ]
+}

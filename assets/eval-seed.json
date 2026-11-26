@@ -1,0 +1,230 @@
+{
+  "version": "1.0.0",
+  "purpose": "New synthetic regression seeds reconstructed from legacy v2.8.0 rules; not recovered historic seeds.",
+  "cases": [
+    {
+      "id": "tutorial-01",
+      "article_type": "tutorial",
+      "title": "可复现实操",
+      "text": "作者提供 Python 版本、依赖锁定、完整输入输出、失败示例及实际运行记录；明确仅在本机验证。步骤较长但每步有用途。",
+      "expected_scores": {
+        "information_density": [
+          3,
+          5
+        ],
+        "argument_quality": [
+          3,
+          5
+        ],
+        "originality": [
+          2,
+          4
+        ],
+        "credibility": [
+          3,
+          4
+        ],
+        "practical_value": [
+          4,
+          5
+        ]
+      },
+      "required_observations": [
+        "reproducibility",
+        "scope_limit"
+      ]
+    },
+    {
+      "id": "investment-01",
+      "article_type": "investment",
+      "title": "没有风险披露的策略",
+      "text": "某匿名作者称策略稳赚不赔，收益翻倍；没有样本、时间区间、回撤和利益披露，只提供付费群入口。",
+      "expected_scores": {
+        "information_density": [
+          0,
+          2
+        ],
+        "argument_quality": [
+          0,
+          1
+        ],
+        "originality": [
+          0,
+          2
+        ],
+        "credibility": [
+          0,
+          1
+        ],
+        "practical_value": [
+          0,
+          2
+        ]
+      },
+      "required_observations": [
+        "conflict_of_interest",
+        "risk_missing"
+      ]
+    },
+    {
+      "id": "product_pr-01",
+      "article_type": "product_pr",
+      "title": "缺少方法的产品宣传",
+      "text": "某公司宣传自家平台效率提高100%、准确率99%，未给基线、样本量或测量方法；列了功能与体验入口。",
+      "expected_scores": {
+        "information_density": [
+          1,
+          3
+        ],
+        "argument_quality": [
+          0,
+          2
+        ],
+        "originality": [
+          0,
+          2
+        ],
+        "credibility": [
+          0,
+          2
+        ],
+        "practical_value": [
+          1,
+          3
+        ]
+      },
+      "required_observations": [
+        "measurement_missing",
+        "affiliation"
+      ]
+    },
+    {
+      "id": "trend-01",
+      "article_type": "trend",
+      "title": "相关性与因果",
+      "text": "作者以公开调查中三个年度比例说明变化，并附来源和样本定义，但由相关性直接推导某政策造成全部变化，没有控制其他变量。",
+      "expected_scores": {
+        "information_density": [
+          3,
+          5
+        ],
+        "argument_quality": [
+          1,
+          3
+        ],
+        "originality": [
+          1,
+          3
+        ],
+        "credibility": [
+          2,
+          4
+        ],
+        "practical_value": [
+          1,
+          3
+        ]
+      },
+      "required_observations": [
+        "causality_limit",
+        "source_scope"
+      ]
+    },
+    {
+      "id": "opinion-01",
+      "article_type": "opinion",
+      "title": "有边界的技术观点",
+      "text": "作者比较两类代码组织方式，给反例、前提和有限样例，明确没有真实模型排名数据；提出显式依赖与低成本验证原则。",
+      "expected_scores": {
+        "information_density": [
+          3,
+          5
+        ],
+        "argument_quality": [
+          3,
+          5
+        ],
+        "originality": [
+          2,
+          4
+        ],
+        "credibility": [
+          3,
+          4
+        ],
+        "practical_value": [
+          3,
+          5
+        ]
+      },
+      "required_observations": [
+        "no_fabricated_ranking",
+        "conceptual_value"
+      ]
+    },
+    {
+      "id": "news-01",
+      "article_type": "news",
+      "title": "有来源的新闻",
+      "text": "本文简要转述公告中的发布时间、产品变动和适用范围，链接原公告，明确后续信息未确认；没有声称原创调查或深度分析。",
+      "expected_scores": {
+        "information_density": [
+          3,
+          5
+        ],
+        "argument_quality": [
+          2,
+          4
+        ],
+        "originality": [
+          0,
+          2
+        ],
+        "credibility": [
+          3,
+          5
+        ],
+        "practical_value": [
+          2,
+          4
+        ]
+      },
+      "required_observations": [
+        "news_baseline",
+        "not_original_reporting"
+      ]
+    },
+    {
+      "id": "tool_repost-01",
+      "article_type": "tool_repost",
+      "title": "README翻译介绍",
+      "text": "作者说明内容翻译自一个开源项目 README，列安装命令和项目链接，未实际运行，结尾邀请进入通用交流群。",
+      "expected_scores": {
+        "information_density": [
+          1,
+          3
+        ],
+        "argument_quality": [
+          1,
+          3
+        ],
+        "originality": [
+          0,
+          2
+        ],
+        "credibility": [
+          2,
+          4
+        ],
+        "practical_value": [
+          1,
+          3
+        ]
+      },
+      "required_observations": [
+        "repost_depth",
+        "not_tested"
+      ]
+    }
+  ]
+}

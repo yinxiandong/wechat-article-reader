@@ -1,10 +1,10 @@
 ---
 name: wechat-article-reader
-description: 读取微信公众号文章链接或已保存的文章 HTML，提取标题、作者、公众号、发布时间及正文，转换为 Markdown、纯文本或 JSON。适用于阅读、总结前取文和本地归档微信文章。
+description: 读取微信公众号文章或离线 HTML，默认按类型进行摘要、评价和五维25分评分，支持 Markdown/文本/JSON 归档及依据反馈的评分校准进化。用户只要原文时跳过点评。
 license: Apache-2.0
 ---
 
-# 微信文章读取与归档
+# 微信文章读取、评分与评价
 
 使用本技能目录内 `scripts/fetch_wechat_article.py`，不要依赖当前工作目录或临时重写转换器。需要 Python 3.10+；在用户选定的虚拟环境中按 `requirements.txt` 安装依赖。
 
@@ -16,7 +16,11 @@ license: Apache-2.0
 python "<技能目录>/scripts/fetch_wechat_article.py" "https://mp.weixin.qq.com/s/ARTICLE_ID"
 ```
 
-默认使用 HTTP 获取正文，Markdown 写标准输出。不指定归档路径时可直接读取输出；用户要求总结时，先确认提取到正文，再依据正文总结。保持引用与原作者观点可区分。
+默认完整流程：HTTP 读取为 JSON → 核对正文与结尾 → 识别文章类型 → 摘要、评价和五维评分 → 在用户工作区记录点评并检查进化触发。抓取命令默认输出 Markdown，点评流程使用 `--format json` 取得正文、元信息和哈希。
+
+**先读 [references/scoring.md](references/scoring.md)**，按恢复的旧版 wechat 2.8.0 标准评分：信息密度、论证质量、原创性、可信度、实用价值，各 0–5，等权满分 25。每维给依据，未核验的外链/代码/原创性不宣称已证实。不将字数或抓取成功率转换成质量分。
+
+用户明确说“只看原文”“不要点评”“原文就行”或仅要求导出原文时跳过点评、记录和计数。脚本本身不生成主观分数或调用模型；由当前助手阅读后评价。原文与助手评价分开交付。
 
 只接受精确域名 `mp.weixin.qq.com` 的 HTTPS 链接，逐跳校验 HTTP 重定向。一次请求超时默认 30 秒，可以使用 `--timeout` 调整，上限 180 秒。链接包含的参数可能是临时访问标识，不写入日志或提交到公开仓库；归档的 source 字段保留输入参数，分享前由用户检查。
 
@@ -45,6 +49,14 @@ python "<技能目录>/scripts/fetch_wechat_article.py" --html "<本地文章.ht
 ```
 
 离线模式不会联网，`--source-url` 可省略；省略时 source 为 null，不推断文章来源。
+
+## 点评记录及评分进化
+
+使用用户指定的点评工作区；未指定时，在当前任务工作区下创建 `wechat-reviews`，说明实际位置，并确保位于技能包之外。先 `review_workspace.py --workspace "工作区" init`，再按评分文档构建 review.json 并 record。默认在当前对话给出评价，原文和点评文件保存在工作区，不发送到其他聊天或账号。
+
+record 返回 reflect_due=true 时，按 [references/evolution.md](references/evolution.md) 执行 Reflect → Bounded Edit → Gate。用户主动要求“进化/优化评分”时也读取该文档。每 5 篇、每 7 天检查、手动三种触发保留；每周日 10:00 的后台调度需已有调度器，本包不自动注册任务。
+
+没有真实点评和反馈时不伪造“改善”；种子原本全通过时不能人为造差基线。历史评分保留规则/profile/文章哈希。失败不更新规则，正常运行不自动改写技能源码、Git 推送或全局记忆。
 
 ## 内容边界
 

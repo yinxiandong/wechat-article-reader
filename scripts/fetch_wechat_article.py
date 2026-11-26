@@ -6,6 +6,7 @@ Python rewrite inspired by bulls-cows/skills yy-wechat-to-markdown (Apache-2.0).
 optional browser rendering, distinct dates and explicit failure handling.
 """
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -23,7 +24,11 @@ AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131
 
 
 class ArticleError(ValueError):
-    """Expected input, transport or extraction failure."""
+    """Expected input, transport or extraction failure with a stable error code."""
+
+    def __init__(self, message, code='read_failed'):
+        super().__init__(message)
+        self.code = code
 
 
 def validate_url(url):
@@ -101,6 +106,22 @@ def fetch_browser(url, timeout):
                 if response is not None and response.status >= 400:
                     raise ArticleError(f'HTTP {response.status}; article not retrieved')
                 final_url = validate_url(page.url)
+                try:
+                    page.wait_for_function("""() => {
+                        const body = document.querySelector('#js_content, .rich_media_content');
+                        const ready = body && (body.textContent.trim() || body.querySelector('img[data-src], img[src]'));
+                        const status = document.querySelector('#js_verify, #js_pay_content, .pay_read_area, #js_pay_area');
+                        const message = document.querySelector('.weui-msg__title');
+                        return !!(ready || status || (message && message.textContent.trim()));
+                    }""", timeout=timeout * 1000)
+                except BrowserError as exc:
+                    # Return an identifiable error page, otherwise report rendering timeout.
+                    try:
+                        extract_article(page.content(), final_url, 'browser')
+                    except ArticleError as status:
+                        if status.code in ('verification_required', 'paid_or_restricted', 'article_deleted', 'login_required'):
+                            raise status from exc
+                    raise ArticleError('timed out waiting for article body or status', 'render_timeout') from exc
                 html = page.content()
                 if len(html.encode('utf-8')) > MAX_BYTES:
                     raise ArticleError('HTML exceeds 12 MiB limit')
@@ -151,17 +172,25 @@ def publication_date(soup, html):
 def extract_article(html, source=None, retrieved_via='offline-html'):
     soup = BeautifulSoup(html, 'html.parser')
     body = soup.select_one('#js_content') or soup.select_one('.rich_media_content')
-    # Explicit access indicators outside article text. Do not archive a preview as a full article.
-    if soup.select_one('#js_pay_content, .pay_read_area, #js_pay_area, #js_verify, .weui-msg__title'):
-        raise ArticleError('restricted, verification or status page; full article is not confirmed')
+    # Classify explicit status elements, not arbitrary article keywords.
+    status_nodes = soup.select('#js_verify, #js_pay_content, .pay_read_area, #js_pay_area, .weui-msg__title')
+    status_text = ' '.join(node.get_text(' ', strip=True) for node in status_nodes)
+    if soup.select_one('#js_verify') or any(term in status_text for term in ('环境异常', '验证', '验证码', '操作频繁')):
+        raise ArticleError('verification or abnormal environment page', 'verification_required')
+    if any(term in status_text for term in ('已删除', '无法查看', '已被发布者删除', '内容不存在', '已被屏蔽')):
+        raise ArticleError('article is deleted or unavailable', 'article_deleted')
+    if any(term in status_text for term in ('登录', '登陆')):
+        raise ArticleError('login is required', 'login_required')
+    if soup.select_one('#js_pay_content, .pay_read_area, #js_pay_area'):
+        raise ArticleError('paid content or restricted preview; full article is not confirmed', 'paid_or_restricted')
     if body is None:
-        raise ArticleError('article body missing; page may be deleted, restricted, or require verification')
+        raise ArticleError('article body missing; access status is unknown', 'body_missing')
     title = (text_of(soup, '#activity-name') or text_of(soup, '.rich_media_title')
              or meta_of(soup, 'og:title') or js_string(html, 'msg_title'))
     account = text_of(soup, '#js_name') or js_string(html, 'nickname')
     author = text_of(soup, '#js_author_name') or meta_of(soup, 'author') or js_string(html, 'author')
     if not title:
-        raise ArticleError('article title missing; page is not confirmed as a complete article')
+        raise ArticleError('article title missing; page is not confirmed as a complete article', 'title_missing')
     published_at = publication_date(soup, html)
     warnings = []
     if not published_at:
@@ -199,10 +228,21 @@ def extract_article(html, source=None, retrieved_via='offline-html'):
     markdown = markdownify(str(body), heading_style='ATX', bullets='-', wrap=False).strip()
     plain = body.get_text('\n', strip=True)
     if not markdown or (not plain and not images):
-        raise ArticleError('article body is empty')
+        raise ArticleError('article body is empty', 'body_empty')
     if images:
         warnings.append('Images retain remote URLs; they are not downloaded and may expire.')
-    return {'title': title, 'author': author or None, 'account': account or None,
+    diagnostics = {
+        'text_characters': len(plain), 'markdown_characters': len(markdown),
+        'heading_count': len(body.select('h1, h2, h3, h4, h5, h6')),
+        'code_block_count': len(body.select('pre')), 'table_count': len(body.select('table')),
+        'image_count': len(images), 'unique_image_count': len(set(images)),
+        'tail_excerpt': plain[-400:],
+        'completeness': 'body_extracted_not_independently_verified',
+        'text_sha256': hashlib.sha256(plain.encode('utf-8')).hexdigest(),
+    }
+    if not plain and images:
+        warnings.append('Image-only article; text is insufficient for a content score without inspecting images.')
+    return {'diagnostics': diagnostics, 'title': title, 'author': author or None, 'account': account or None,
             'source': source, 'published_at': published_at,
             'fetched_at': datetime.now(timezone.utc).isoformat(), 'retrieved_via': retrieved_via,
             'warnings': warnings, 'images': list(dict.fromkeys(images)),
@@ -215,8 +255,8 @@ def render(article, output_format):
     if output_format == 'text':
         return article['title'] + '\n\n' + article['text'] + '\n'
     # JSON scalars are valid YAML scalars and escape quotes, colons and newlines.
-    fields = ['title', 'author', 'account', 'source', 'published_at', 'fetched_at', 'retrieved_via', 'warnings']
-    frontmatter = '\n'.join(f'{key}: {json.dumps(article[key], ensure_ascii=False)}' for key in fields)
+    fields = ['title', 'author', 'account', 'source', 'published_at', 'fetched_at', 'retrieved_via', 'warnings', 'diagnostics']
+    frontmatter = '\n'.join(f'{key}: {json.dumps(article.get(key), ensure_ascii=False)}' for key in fields)
     title = ' '.join(article['title'].splitlines())
     return f'---\n{frontmatter}\n---\n\n# {title}\n\n{article["markdown"]}\n'
 
@@ -262,12 +302,12 @@ def main(argv=None):
             with args.output.open('x', encoding='utf-8', newline='\n') as handle:
                 handle.write(result)
             print(json.dumps({'output': str(args.output.resolve()), 'title': article['title'],
-                              'characters': len(article['text']), 'warnings': article['warnings']}, ensure_ascii=False), file=sys.stderr)
+                              'characters': len(article['text']), 'warnings': article['warnings'], 'diagnostics': article['diagnostics']}, ensure_ascii=False), file=sys.stderr)
         else:
             sys.stdout.write(result)
         return 0
     except (ArticleError, OSError, UnicodeError, ValueError) as exc:
-        print(f'ERROR: {exc}', file=sys.stderr)
+        print(f'ERROR [{getattr(exc, "code", "input_or_io_error")}]: {exc}', file=sys.stderr)
         return 2
 
 

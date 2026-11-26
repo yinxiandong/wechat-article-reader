@@ -5,3 +5,11 @@ __pycache__/
 articles/
 .env
 *.log
+
+wechat-reviews/
+review-state.json
+.review.lock
+proposal.json
+changes.json
+article.json
+review.json
