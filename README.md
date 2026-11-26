@@ -63,7 +63,7 @@ python scripts/review_workspace.py --workspace "用户点评工作区" reflect -
 
 ## GitHub 每周进化 PR
 
-提供每周日北京时间 10:00 和手动触发工作流。配置 `EVOLUTION_OPENAI_API_KEY`、`EVOLUTION_MODEL` 和人工脱敏的 `EVOLUTION_FEEDBACK_JSON` 后，生成补充规则，分别评测基线与候选，通过 Gate 和测试才创建 PR。仅更新公共校准说明与合成报告，不自动合并、不修改技能代码。
+提供每周日北京时间 10:00 和手动触发工作流。配置 `EVOLUTION_OPENAI_API_KEY`、`EVOLUTION_MODEL` 和人工脱敏的 `EVOLUTION_FEEDBACK_JSON` 后，生成补充规则，分别评测基线与候选，通过 Gate 和测试才创建 PR。仅更新公共校准说明与合成报告，不自动合并、不修改技能代码。发布前独立复算每例误差、通过/失败、改善率和退步；运行摘要单独记录实际请求 token 与耗时，成本不参与正确性门槛。
 
 缺配置会报告跳过。原文、点评状态、私有反馈和模型响应不公开；规则合并后，本机通过 `git pull --ff-only` 和 `review_workspace.py ... sync-profile` 同步，保留历史点评。
 
@@ -92,6 +92,9 @@ wechat-article-reader/
 ├── .github/workflows/scoring-evolution.yml
 ├── scripts/review_workspace.py
 ├── scripts/scheduled_evolution.py
+├── scripts/evolution_core.py
+├── scripts/model_client.py
+├── scripts/check_publication.py
 ├── references/scoring.md
 ├── references/evolution.md
 ├── references/github-evolution.md
@@ -99,6 +102,7 @@ wechat-article-reader/
 ├── tests/test_reader.py
 ├── tests/test_reviews.py
 ├── tests/test_cloud.py
+├── tests/test_verification.py
 ├── LICENSE
 └── NOTICE
 ```
@@ -106,6 +110,7 @@ wechat-article-reader/
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
+python scripts/check_publication.py
 ```
 
 测试以虚构 HTML 和模拟 HTTP 为主；不将单元测试通过视为任意微信链接可读。来源、具体改动和验证边界见 [implementation](references/implementation.md)。

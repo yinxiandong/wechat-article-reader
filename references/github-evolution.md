@@ -44,6 +44,22 @@ Get-Content -Raw -Encoding UTF8 "私有文件路径" | gh secret set EVOLUTION_F
 
 公共 PR 仅含 assets/published-profiles.json 和 assets/evolution-report.json。报告包含合成分数、误差、观察点键和哈希；不发布自由文本理由、用户案例或原始响应，不上传私有构建产物。哈希仅核对一致性，相同模型评测也不是独立审查。合并人需检查新说明的依据、隐私和评价边界。
 
+## 确定性复算与运行指标
+
+规则候选和评测报告由 evolution_core.py 用显式输入生成；模型 HTTP 请求单独位于 model_client.py。模型返回的格式无效时立即停止，无自动重试。正确性结论仍由原 Gate 判定，不使用 token、耗时或模型自称“改进”来替代。
+
+新增只读检查：
+
+```bash
+python scripts/check_publication.py
+```
+
+检查器从七类冻结样例、公共分项评分与观察点键重新计算每例误差、成功/失败数量、成功比例、改善比例及退步情况，并核对 profile/seed 哈希。报告少例、重复例、数字不一致、只更改结论或不满足门槛时阻止发布。CI 和定时 PR 的候选步骤均调用它。公开报告 schema_version=2；没有进化版本时仅验证原始 profile 链，无需生成空报告。已有私人点评工作区格式保持不变。
+
+Actions 运行摘要分别显示七个合成案例的通过/失败和模型请求运行指标。后者包含尝试次数、完成次数、失败次数、API 报告的输入/输出 token，以及所有已结束请求（含失败）的总、平均、中位和最长耗时。usage 缺失会单独计数，reported_*_tokens 仅表示已收到的用量，不代表零费用或完整账单。失败请求可能已经计费；请求耗时也不等于完整工作流耗时或模型理解速度。指标不含密钥、请求内容或提供商响应正文，只写运行摘要，不进入公开规则报告。
+
+复算只能检验结构与算术一致性，无法证明模型解释真实、案例代表性充分或现实效果提升；合并仍需语义审阅。
+
 ## 本机同步
 
 合并 PR 只更新 GitHub。本机推荐使用独立 Git clone 安装，确认工作区干净后执行：
@@ -59,7 +75,7 @@ sync-profile 只追加已发布版本，保留历史点评；未结束复盘或�
 
 ## 排查
 
-运行摘要：not_configured 为缺配置；feedback_profile_stale 为需同步再导出；no_supported_changes 为无合理修改；regression_gate_rejected 为保留规则。网络、JSON、模型格式错误会失败，不创建 PR。
+运行摘要：not_configured 为缺配置；feedback_profile_stale 为需同步再导出；no_supported_changes 为无合理修改；regression_gate_rejected 为保留规则。网络、JSON、模型格式错误会失败，不创建 PR；evaluation_failed 的运行摘要保留已发生的请求指标。
 
 如果推送分支成功但 PR 权限失败，先检查 automation/scoring-evolution-* 分支并手动创建 PR，避免重复评测费用。已有待审规则 PR 会阻止后续评测。
 

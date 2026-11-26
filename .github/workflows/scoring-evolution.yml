@@ -28,7 +28,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          count=$(gh pr list --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/scoring-evolution-"))] | length')
+          count=$(gh pr list --state open --limit 1000 --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/scoring-evolution-"))] | length')
           if [ "$count" -gt 0 ]; then
             echo "blocked=true" >> "$GITHUB_OUTPUT"
             echo "Skipped: existing rules PR needs review." >> "$GITHUB_STEP_SUMMARY"
@@ -51,6 +51,7 @@ jobs:
         if: steps.evolution.outputs.changed == 'true'
         run: |
           python -m unittest discover -s tests -v
+          python scripts/check_publication.py
           git diff --check
       - name: Publish rules PR
         if: steps.evolution.outputs.changed == 'true'

@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import review_workspace as rw
 import scheduled_evolution as cloud
+import model_client as transport
+import check_publication
 
 RUBRIC = rw.load(ROOT / 'assets/scoring-rubric.json')
 SEEDS = rw.load(ROOT / 'assets/eval-seed.json')
@@ -50,6 +52,7 @@ class CloudTests(unittest.TestCase):
         return invoke, calls
 
     def test_current_publication_is_valid(self):
+        self.assertTrue(check_publication.check(ROOT)['valid'])
         profiles = rw.published_profiles(RUBRIC)
         self.assertGreaterEqual(len(profiles), 1)
         report_path = ROOT / 'assets/evolution-report.json'
@@ -170,7 +173,7 @@ class CloudTests(unittest.TestCase):
         import urllib.error
         opener = unittest.mock.Mock()
         opener.open.side_effect = urllib.error.HTTPError('https://api.openai.com', 400, 'PRIVATE', {}, None)
-        with patch.object(cloud.urllib.request, 'build_opener', return_value=opener):
+        with patch.object(transport.urllib.request, 'build_opener', return_value=opener):
             with self.assertRaises(ValueError) as caught:
                 cloud.ModelClient('test-secret', 'test-model')('instruction', {})
         self.assertNotIn('PRIVATE', str(caught.exception))
